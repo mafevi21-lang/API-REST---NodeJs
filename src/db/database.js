@@ -1,72 +1,77 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 
-const RUTA_DB = process.env.DB_PATH || path.join(__dirname, '..', '..', 'data', 'peliculas.db');
+const CONEXION = process.env.DATABASE_URL;
+const ESQUEMA = process.env.DB_SCHEMA || 'public';
 
-if (RUTA_DB !== ':memory:') {
-  fs.mkdirSync(path.dirname(RUTA_DB), { recursive: true });
+if (!CONEXION) {
+  throw new Error('Falta la variable de entorno DATABASE_URL con la cadena de conexión a PostgreSQL');
 }
 
-const ESQUEMA = `
-CREATE TABLE IF NOT EXISTS generos (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre              TEXT    NOT NULL UNIQUE,
-  descripcion         TEXT,
-  estado              TEXT    NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
-  fecha_creacion      TEXT    NOT NULL,
-  fecha_actualizacion TEXT    NOT NULL
-);
+const pool = new Pool({ connectionString: CONEXION, max: 5 });
 
-CREATE TABLE IF NOT EXISTS directores (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombres             TEXT    NOT NULL,
-  estado              TEXT    NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
-  fecha_creacion      TEXT    NOT NULL,
-  fecha_actualizacion TEXT    NOT NULL
-);
+const db = {
+  query: (texto, valores) => pool.query(texto, valores),
+};
 
-CREATE TABLE IF NOT EXISTS productoras (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre              TEXT    NOT NULL UNIQUE,
-  slogan              TEXT,
-  descripcion         TEXT,
-  estado              TEXT    NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
-  fecha_creacion      TEXT    NOT NULL,
-  fecha_actualizacion TEXT    NOT NULL
-);
+// Nombre de tabla calificado con el esquema, por ejemplo "public"."generos"
+function tablaSql(nombre) {
+  return `"${ESQUEMA}"."${nombre}"`;
+}
 
-CREATE TABLE IF NOT EXISTS tipos (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre              TEXT    NOT NULL UNIQUE,
-  descripcion         TEXT,
-  fecha_creacion      TEXT    NOT NULL,
-  fecha_actualizacion TEXT    NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS medios (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  serial              TEXT    NOT NULL UNIQUE,
-  titulo              TEXT    NOT NULL,
-  sinopsis            TEXT,
-  url                 TEXT    NOT NULL UNIQUE,
-  imagen_portada      TEXT,
-  anio_estreno        INTEGER NOT NULL,
-  genero_id           INTEGER NOT NULL REFERENCES generos (id)    ON DELETE RESTRICT,
-  director_id         INTEGER NOT NULL REFERENCES directores (id) ON DELETE RESTRICT,
-  productora_id       INTEGER NOT NULL REFERENCES productoras (id) ON DELETE RESTRICT,
-  tipo_id             INTEGER NOT NULL REFERENCES tipos (id)      ON DELETE RESTRICT,
-  fecha_creacion      TEXT    NOT NULL,
-  fecha_actualizacion TEXT    NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_medios_genero     ON medios (genero_id);
-CREATE INDEX IF NOT EXISTS idx_medios_director   ON medios (director_id);
-CREATE INDEX IF NOT EXISTS idx_medios_productora ON medios (productora_id);
-CREATE INDEX IF NOT EXISTS idx_medios_tipo       ON medios (tipo_id);
-`;
+const SENTENCIAS_ESQUEMA = () => [
+  `CREATE TABLE IF NOT EXISTS ${tablaSql('generos')} (
+    id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre              TEXT NOT NULL UNIQUE,
+    descripcion         TEXT,
+    estado              TEXT NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
+    fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS ${tablaSql('directores')} (
+    id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombres             TEXT NOT NULL,
+    estado              TEXT NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
+    fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS ${tablaSql('productoras')} (
+    id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre              TEXT NOT NULL UNIQUE,
+    slogan              TEXT,
+    descripcion         TEXT,
+    estado              TEXT NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
+    fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS ${tablaSql('tipos')} (
+    id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre              TEXT NOT NULL UNIQUE,
+    descripcion         TEXT,
+    fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS ${tablaSql('medios')} (
+    id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    serial              TEXT NOT NULL UNIQUE,
+    titulo              TEXT NOT NULL,
+    sinopsis            TEXT,
+    url                 TEXT NOT NULL UNIQUE,
+    imagen_portada      TEXT,
+    anio_estreno        INTEGER NOT NULL,
+    genero_id           INTEGER NOT NULL REFERENCES ${tablaSql('generos')} (id)     ON DELETE RESTRICT,
+    director_id         INTEGER NOT NULL REFERENCES ${tablaSql('directores')} (id)  ON DELETE RESTRICT,
+    productora_id       INTEGER NOT NULL REFERENCES ${tablaSql('productoras')} (id) ON DELETE RESTRICT,
+    tipo_id             INTEGER NOT NULL REFERENCES ${tablaSql('tipos')} (id)       ON DELETE RESTRICT,
+    fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_medios_genero ON ${tablaSql('medios')} (genero_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_medios_director ON ${tablaSql('medios')} (director_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_medios_productora ON ${tablaSql('medios')} (productora_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_medios_tipo ON ${tablaSql('medios')} (tipo_id)`,
+];
 
 const GENEROS_INICIALES = [
   ['Acción', 'Películas con persecuciones, combates y mucha acción.'],
@@ -81,31 +86,40 @@ const TIPOS_INICIALES = [
   ['Serie', 'Producción audiovisual dividida en temporadas y episodios.'],
 ];
 
-function sembrar(db) {
-  const fecha = new Date().toISOString();
-
-  const insertarGenero = db.prepare(`
-    INSERT OR IGNORE INTO generos (nombre, descripcion, estado, fecha_creacion, fecha_actualizacion)
-    VALUES (?, ?, 'activo', ?, ?)
-  `);
-  const insertarTipo = db.prepare(`
-    INSERT OR IGNORE INTO tipos (nombre, descripcion, fecha_creacion, fecha_actualizacion)
-    VALUES (?, ?, ?, ?)
-  `);
-
-  db.transaction(() => {
-    for (const [nombre, descripcion] of GENEROS_INICIALES) {
-      insertarGenero.run(nombre, descripcion, fecha, fecha);
-    }
-    for (const [nombre, descripcion] of TIPOS_INICIALES) {
-      insertarTipo.run(nombre, descripcion, fecha, fecha);
-    }
-  })();
+async function sembrar() {
+  for (const [nombre, descripcion] of GENEROS_INICIALES) {
+    await db.query(
+      `INSERT INTO ${tablaSql('generos')} (nombre, descripcion) VALUES ($1, $2) ON CONFLICT (nombre) DO NOTHING`,
+      [nombre, descripcion],
+    );
+  }
+  for (const [nombre, descripcion] of TIPOS_INICIALES) {
+    await db.query(
+      `INSERT INTO ${tablaSql('tipos')} (nombre, descripcion) VALUES ($1, $2) ON CONFLICT (nombre) DO NOTHING`,
+      [nombre, descripcion],
+    );
+  }
 }
 
-const db = new Database(RUTA_DB);
-db.pragma('foreign_keys = ON');
-db.exec(ESQUEMA);
-sembrar(db);
+// Crea el esquema, las tablas y los datos iniciales. Es seguro ejecutarlo varias veces.
+async function inicializar() {
+  await pool.query(`CREATE SCHEMA IF NOT EXISTS "${ESQUEMA}"`);
+  for (const sentencia of SENTENCIAS_ESQUEMA()) {
+    await pool.query(sentencia);
+  }
+  await sembrar();
+}
 
-module.exports = { db };
+// Solo elimina esquemas de pruebas, para no borrar nunca los datos reales.
+async function eliminarEsquemaDePruebas() {
+  if (!ESQUEMA.startsWith('prueba_')) {
+    throw new Error('Solo se puede eliminar un esquema de pruebas (prefijo prueba_)');
+  }
+  await pool.query(`DROP SCHEMA IF EXISTS "${ESQUEMA}" CASCADE`);
+}
+
+async function cerrar() {
+  await pool.end();
+}
+
+module.exports = { db, tablaSql, inicializar, eliminarEsquemaDePruebas, cerrar };

@@ -1,11 +1,11 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { db } = require('../../db/database');
+const { db, tablaSql } = require('../../db/database');
 const { ApiError } = require('../../utils/errores');
 const { crearServicioCatalogo } = require('../catalogos/servicioCatalogo');
 const { crearRutasCatalogo } = require('../catalogos/rutasCatalogo');
-const { leerTexto, leerEntero, leerUrl } = require('../../utils/validar');
+const { leerTexto, leerEntero, leerUrl, parsearId } = require('../../utils/validar');
 
 const ANIO_MINIMO = 1888; // año del primer filme conocido
 const ANIO_MAXIMO = new Date().getFullYear() + 1;
@@ -20,16 +20,16 @@ const REFERENCIAS = {
   tipoId: { tabla: 'tipos', entidad: 'Tipo', exigeActivo: false },
 };
 
-function verificarReferencias(datos) {
+async function verificarReferencias(datos) {
   for (const [clave, { tabla, entidad, exigeActivo }] of Object.entries(REFERENCIAS)) {
     const id = datos[clave];
     if (id === undefined) continue;
 
-    const fila = db.prepare(`SELECT * FROM ${tabla} WHERE id = ?`).get(id);
-    if (!fila) {
+    const { rows } = await db.query(`SELECT * FROM ${tablaSql(tabla)} WHERE id = $1`, [id]);
+    if (rows.length === 0) {
       throw new ApiError(400, `${entidad} con id ${id} no existe`);
     }
-    if (exigeActivo && fila.estado !== 'activo') {
+    if (exigeActivo && rows[0].estado !== 'activo') {
       throw new ApiError(422, `${entidad} con id ${id} está inactivo; solo se pueden usar registros activos`);
     }
   }
@@ -44,11 +44,11 @@ const servicio = crearServicioCatalogo({
            directores.nombres   AS director_nombres,
            productoras.nombre   AS productora_nombre,
            tipos.nombre         AS tipo_nombre
-    FROM medios
-    JOIN generos     ON generos.id     = medios.genero_id
-    JOIN directores  ON directores.id  = medios.director_id
-    JOIN productoras ON productoras.id = medios.productora_id
-    JOIN tipos       ON tipos.id       = medios.tipo_id`,
+    FROM ${tablaSql('medios')}
+    JOIN ${tablaSql('generos')}     ON generos.id     = medios.genero_id
+    JOIN ${tablaSql('directores')}  ON directores.id  = medios.director_id
+    JOIN ${tablaSql('productoras')} ON productoras.id = medios.productora_id
+    JOIN ${tablaSql('tipos')}       ON tipos.id       = medios.tipo_id`,
   mapear: (fila) => ({
     id: fila.id,
     serial: fila.serial,
@@ -65,10 +65,10 @@ const servicio = crearServicioCatalogo({
     tipo: { id: fila.tipo_id, nombre: fila.tipo_nombre },
   }),
   filtrables: {
-    generoId: 'medios.genero_id',
-    directorId: 'medios.director_id',
-    productoraId: 'medios.productora_id',
-    tipoId: 'medios.tipo_id',
+    generoId: { columna: 'medios.genero_id', validar: parsearId },
+    directorId: { columna: 'medios.director_id', validar: parsearId },
+    productoraId: { columna: 'medios.productora_id', validar: parsearId },
+    tipoId: { columna: 'medios.tipo_id', validar: parsearId },
   },
   campos: {
     serial: {

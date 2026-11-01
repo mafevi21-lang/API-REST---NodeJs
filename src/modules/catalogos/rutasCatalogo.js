@@ -7,28 +7,28 @@ const { parsearId } = require('../../utils/validar');
 function crearRutasCatalogo(servicio) {
   const router = express.Router();
 
-  router.get('/', (req, res) => {
-    res.json(servicio.listar(req.query));
+  router.get('/', async (req, res) => {
+    res.json(await servicio.listar(req.query));
   });
 
-  router.get('/:id', (req, res) => {
-    res.json(servicio.obtener(parsearId(req.params.id)));
+  router.get('/:id', async (req, res) => {
+    res.json(await servicio.obtener(parsearId(req.params.id)));
   });
 
-  router.post('/', (req, res) => {
-    res.status(201).json(servicio.crear(req.body));
+  router.post('/', async (req, res) => {
+    res.status(201).json(await servicio.crear(req.body));
   });
 
-  router.put('/:id', (req, res) => {
-    res.json(servicio.actualizar(parsearId(req.params.id), req.body));
+  router.put('/:id', async (req, res) => {
+    res.json(await servicio.actualizar(parsearId(req.params.id), req.body));
   });
 
-  router.patch('/:id', (req, res) => {
-    res.json(servicio.actualizar(parsearId(req.params.id), req.body));
+  router.patch('/:id', async (req, res) => {
+    res.json(await servicio.actualizar(parsearId(req.params.id), req.body));
   });
 
-  router.delete('/:id', (req, res) => {
-    servicio.eliminar(parsearId(req.params.id));
+  router.delete('/:id', async (req, res) => {
+    await servicio.eliminar(parsearId(req.params.id));
     res.status(204).end();
   });
 

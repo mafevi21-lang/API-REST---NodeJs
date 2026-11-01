@@ -1,30 +1,43 @@
 # API REST de películas y series
 
 Evidencia de aprendizaje **API REST - Node.js** (Ingeniería Web II, IUDigital de Antioquia).
-Backend con Node.js + Express 5 y SQLite (better-sqlite3), con los módulos **Género**, **Director**, **Productora**, **Tipo** y **Media** (películas y series).
+Backend con Node.js + Express 5 y PostgreSQL (driver `pg`, base alojada en Neon), con los módulos **Género**, **Director**, **Productora**, **Tipo** y **Media** (películas y series).
 
 ## Requisitos
 
 - Node.js 20 o superior (probado con Node 24).
+- Una base de datos PostgreSQL y su cadena de conexión (por ejemplo, de Neon).
 - Postman u otro cliente HTTP.
+
+## Configuración
+
+La conexión se toma de la variable de entorno `DATABASE_URL`. No la escribas en el código ni la subas al repositorio.
+
+```bash
+setx DATABASE_URL "postgresql://usuario:clave@servidor/basedatos?sslmode=require"
+```
+
+Después de usar `setx`, cierra y abre la terminal.
+
+Variables de entorno:
+
+| Variable       | Por defecto | Descripción                                                                 |
+|----------------|-------------|-----------------------------------------------------------------------------|
+| `DATABASE_URL` | (obligatoria) | Cadena de conexión a PostgreSQL.                                          |
+| `DB_SCHEMA`    | `public`    | Esquema donde se crean las tablas. Las pruebas lo cambian por uno temporal. |
+| `PORT`         | `3000`      | Puerto del servidor.                                                        |
 
 ## Instalación y ejecución
 
 ```bash
 npm install
+npm run db:init    # crea las tablas y los datos iniciales en la base
 npm start          # http://localhost:3000/api
 npm run dev        # igual, reiniciando al guardar cambios
-npm test           # pruebas automatizadas (usan base de datos en memoria)
+npm test           # pruebas automatizadas (usan un esquema temporal que se borra al final)
 ```
 
-Variables de entorno opcionales:
-
-| Variable  | Por defecto                    | Descripción                          |
-|-----------|--------------------------------|--------------------------------------|
-| `PORT`    | `3000`                         | Puerto del servidor.                 |
-| `DB_PATH` | `data/peliculas.db`            | Ruta del archivo SQLite.             |
-
-> **Nota:** si el proyecto está en OneDrive, conviene apuntar `DB_PATH` a una carpeta fuera de OneDrive (por ejemplo `C:\datos\peliculas.db`). La sincronización de OneDrive puede bloquear o corromper el archivo SQLite.
+> **Nota:** `npm start` también crea las tablas si no existen, así que `db:init` solo es necesario para prepararla antes.
 
 ## Modelo de datos
 

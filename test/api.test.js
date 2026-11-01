@@ -1,23 +1,33 @@
 'use strict';
 
-// Base de datos en memoria para que las pruebas no toquen data/peliculas.db
-process.env.DB_PATH = ':memory:';
+// Cada ejecución usa un esquema temporal (prueba_*) de la base configurada en DATABASE_URL.
+// Al terminar, el esquema se elimina y los datos reales no se modifican.
+const sufijo = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+process.env.DB_SCHEMA = `prueba_${sufijo}`;
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const app = require('../src/app');
+const { inicializar, eliminarEsquemaDePruebas, cerrar } = require('../src/db/database');
 
 let servidor;
 let base;
 
-before(() => new Promise((resolve) => {
-  servidor = app.listen(0, '127.0.0.1', () => {
-    base = `http://127.0.0.1:${servidor.address().port}/api`;
-    resolve();
+before(async () => {
+  await inicializar();
+  await new Promise((resolve) => {
+    servidor = app.listen(0, '127.0.0.1', () => {
+      base = `http://127.0.0.1:${servidor.address().port}/api`;
+      resolve();
+    });
   });
-}));
+});
 
-after(() => new Promise((resolve) => servidor.close(resolve)));
+after(async () => {
+  await new Promise((resolve) => servidor.close(resolve));
+  await eliminarEsquemaDePruebas();
+  await cerrar();
+});
 
 async function peticion(metodo, ruta, cuerpo) {
   const res = await fetch(base + ruta, {
@@ -120,8 +130,11 @@ test('medios: solo acepta catálogos activos y respeta referencias', async () =>
   assert.equal(actualizado.status, 200);
   assert.equal(actualizado.cuerpo.titulo, 'Interstellar (Remasterizada)');
 
-  const filtrado = await peticion('GET', `/medios?generoId=3&tipoId=1`);
+  const filtrado = await peticion('GET', '/medios?generoId=3&tipoId=1');
   assert.ok(filtrado.cuerpo.some((m) => m.id === creado.cuerpo.id));
+
+  const filtroInvalido = await peticion('GET', '/medios?generoId=abc');
+  assert.equal(filtroInvalido.status, 400);
 
   const catalogoEnUso = await peticion('DELETE', `/directores/${director.cuerpo.id}`);
   assert.equal(catalogoEnUso.status, 409);

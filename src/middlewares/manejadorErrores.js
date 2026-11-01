@@ -22,15 +22,20 @@ function manejadorErrores(err, req, res, next) {
     return res.status(413).json({ mensaje: 'El cuerpo de la petición es demasiado grande' });
   }
 
-  if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+  // Códigos de error de PostgreSQL
+  if (err.code === '23505') {
     return res.status(409).json({ mensaje: 'Ya existe un registro con ese valor único (serial, url o nombre)' });
   }
 
-  // ON DELETE RESTRICT llega como SQLITE_CONSTRAINT_TRIGGER en better-sqlite3
-  if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY' || /FOREIGN KEY constraint failed/.test(err.message)) {
+  // 23001: ON DELETE RESTRICT; 23503: violación de clave foránea
+  if (err.code === '23001' || err.code === '23503') {
     return res.status(409).json({
       mensaje: 'La operación no se puede completar porque el registro está en uso por medios existentes',
     });
+  }
+
+  if (err.code === '22P02') {
+    return res.status(400).json({ mensaje: 'Uno de los valores no tiene el formato esperado' });
   }
 
   console.error(err);
