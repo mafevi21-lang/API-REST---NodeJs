@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de películas y series</title>
+  <style>
+    :root {
+      --fondo: #f5f6f8;
+      --tarjeta: #ffffff;
+      --texto: #1f2937;
+      --secundario: #6b7280;
+      --primario: #2563eb;
+      --error: #b91c1c;
+      --exito: #15803d;
+      --borde: #d1d5db;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --fondo: #111827;
+        --tarjeta: #1f2937;
+        --texto: #f3f4f6;
+        --secundario: #9ca3af;
+        --primario: #60a5fa;
+        --error: #f87171;
+        --exito: #4ade80;
+        --borde: #374151;
+      }
+    }
+    :root[data-theme="dark"] {
+      --fondo: #111827;
+      --tarjeta: #1f2937;
+      --texto: #f3f4f6;
+      --secundario: #9ca3af;
+      --primario: #60a5fa;
+      --error: #f87171;
+      --exito: #4ade80;
+      --borde: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      line-height: 1.4;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 1.6rem; margin: 8px 0 16px; }
+    h2 { font-size: 1.2rem; margin: 0 0 12px; }
+    section {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    form .ancho { grid-column: 1 / -1; }
+    label { display: grid; gap: 4px; font-size: 0.9rem; color: var(--secundario); }
+    input, select, textarea {
+      font: inherit;
+      color: var(--texto);
+      background: var(--fondo);
+      border: 1px solid var(--borde);
+      border-radius: 6px;
+      padding: 8px;
+      width: 100%;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    button {
+      font: inherit;
+      background: var(--primario);
+      color: #fff;
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 16px;
+      cursor: pointer;
+      justify-self: start;
+    }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .mensaje { font-size: 0.95rem; min-height: 1.2em; }
+    .mensaje.error { color: var(--error); }
+    .mensaje.exito { color: var(--exito); }
+    .filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; }
+    .filtros label { min-width: 180px; }
+    .lista { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .tarjeta {
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--tarjeta);
+      display: flex;
+      flex-direction: column;
+    }
+    .portada {
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      object-fit: cover;
+      background: var(--fondo);
+      display: block;
+    }
+    .sin-portada {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--secundario); font-size: 0.9rem;
+    }
+    .cuerpo { padding: 12px; display: grid; gap: 6px; }
+    .cuerpo h3 { margin: 0; font-size: 1.05rem; }
+    .meta { font-size: 0.85rem; color: var(--secundario); }
+    .sinopsis { font-size: 0.9rem; margin: 4px 0 0; }
+    .vacio { color: var(--secundario); }
+    a { color: var(--primario); }
+    @media (max-width: 480px) {
+      main { padding: 12px; }
+      .filtros label { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Catálogo de películas y series</h1>
+
+    <section>
+      <h2>Agregar película o serie</h2>
+      <form id="formulario" novalidate>
+        <label class="ancho">Título
+          <input name="titulo" required maxlength="200">
+        </label>
+        <label class="ancho">Sinopsis
+          <textarea name="sinopsis" maxlength="2000"></textarea>
+        </label>
+        <label>Año de estreno
+          <input name="anioEstreno" type="number" required min="1888" step="1">
+        </label>
+        <label>Tipo
+          <select name="tipoId" required></select>
+        </label>
+        <label>Género
+          <select name="generoId" required></select>
+        </label>
+        <label>Director
+          <select name="directorId" required></select>
+        </label>
+        <label>Productora
+          <select name="productoraId" required></select>
+        </label>
+        <label>URL del contenido
+          <input name="url" type="url" required placeholder="https://...">
+        </label>
+        <label class="ancho">URL de la imagen de portada (opcional)
+          <input name="imagenPortada" type="url" placeholder="https://...">
+        </label>
+        <div class="ancho">
+          <button type="submit" id="boton-agregar">Agregar</button>
+        </div>
+        <p id="mensaje-formulario" class="mensaje ancho" role="status"></p>
+      </form>
+    </section>
+
+    <section>
+      <h2>Consultar catálogo</h2>
+      <div class="filtros">
+        <label>Tipo
+          <select id="filtro-tipo"></select>
+        </label>
+        <label>Género
+          <select id="filtro-genero"></select>
+        </label>
+      </div>
+      <p id="mensaje-lista" class="mensaje" role="status"></p>
+      <div id="lista" class="lista"></div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+
+    async function api(ruta, opciones) {
+      const respuesta = await fetch('/api' + ruta, opciones);
+      const datos = respuesta.status === 204 ? null : await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos?.mensaje || 'No se pudo completar la operación');
+      return datos;
+    }
+
+    function mostrarMensaje(elemento, texto, tipo) {
+      elemento.textContent = texto;
+      elemento.className = 'mensaje ' + (tipo || '');
+    }
+
+    function llenarSelect(select, opciones, { conTodos = false, textoTodos = 'Todos' } = {}) {
+      select.replaceChildren();
+      if (conTodos) {
+        select.append(new Option(textoTodos, ''));
+      } else {
+        select.append(new Option('Selecciona una opción', ''));
+      }
+      for (const opcion of opciones) {
+        select.append(new Option(opcion.texto, opcion.valor));
+      }
+    }
+
+    async function cargarListasDelFormulario() {
+      const [tipos, generos, directores, productoras] = await Promise.all([
+        api('/tipos'),
+        api('/generos?estado=activo'),
+        api('/directores?estado=activo'),
+        api('/productoras?estado=activo'),
+      ]);
+      const formulario = $('#formulario');
+      llenarSelect(formulario.tipoId, tipos.map((t) => ({ valor: t.id, texto: t.nombre })));
+      llenarSelect(formulario.generoId, generos.map((g) => ({ valor: g.id, texto: g.nombre })));
+      llenarSelect(formulario.directorId, directores.map((d) => ({ valor: d.id, texto: d.nombres })));
+      llenarSelect(formulario.productoraId, productoras.map((p) => ({ valor: p.id, texto: p.nombre })));
+    }
+
+    async function cargarFiltros() {
+      const [tipos, generos] = await Promise.all([api('/tipos'), api('/generos')]);
+      llenarSelect($('#filtro-tipo'), tipos.map((t) => ({ valor: t.id, texto: t.nombre })), { conTodos: true, textoTodos: 'Todos los tipos' });
+      llenarSelect($('#filtro-genero'), generos.map((g) => ({ valor: g.id, texto: g.nombre })), { conTodos: true, textoTodos: 'Todos los géneros' });
+    }
+
+    function crearTarjeta(medio) {
+      const tarjeta = document.createElement('article');
+      tarjeta.className = 'tarjeta';
+
+      if (medio.imagenPortada) {
+        const imagen = document.createElement('img');
+        imagen.className = 'portada';
+        imagen.alt = 'Portada de ' + medio.titulo;
+        imagen.loading = 'lazy';
+        imagen.referrerPolicy = 'no-referrer';
+        imagen.src = medio.imagenPortada;
+        imagen.onerror = () => imagen.replaceWith(crearSinPortada());
+        tarjeta.append(imagen);
+      } else {
+        tarjeta.append(crearSinPortada());
+      }
+
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'cuerpo';
+
+      const titulo = document.createElement('h3');
+      titulo.textContent = medio.titulo;
+
+      const meta = document.createElement('p');
+      meta.className = 'meta';
+      meta.textContent = `${medio.tipo.nombre} · ${medio.anioEstreno} · ${medio.genero.nombre}`;
+
+      const detalle = document.createElement('p');
+      detalle.className = 'meta';
+      detalle.textContent = `Director: ${medio.director.nombres} · Productora: ${medio.productora.nombre}`;
+
+      const sinopsis = document.createElement('p');
+      sinopsis.className = 'sinopsis';
+      sinopsis.textContent = medio.sinopsis || 'Sin sinopsis.';
+
+      const enlace = document.createElement('a');
+      enlace.href = medio.url;
+      enlace.target = '_blank';
+      enlace.rel = 'noopener noreferrer';
+      enlace.textContent = 'Ver contenido';
+
+      cuerpo.append(titulo, meta, detalle, sinopsis, enlace);
+      tarjeta.append(cuerpo);
+      return tarjeta;
+    }
+
+    function crearSinPortada() {
+      const bloque = document.createElement('div');
+      bloque.className = 'portada sin-portada';
+      bloque.textContent = 'Sin portada';
+      return bloque;
+    }
+
+    async function cargarMedios() {
+      const lista = $('#lista');
+      const mensaje = $('#mensaje-lista');
+      const parametros = new URLSearchParams();
+      if ($('#filtro-tipo').value) parametros.set('tipoId', $('#filtro-tipo').value);
+      if ($('#filtro-genero').value) parametros.set('generoId', $('#filtro-genero').value);
+
+      mostrarMensaje(mensaje, 'Cargando...', '');
+      try {
+        const medios = await api('/medios?' + parametros.toString());
+        lista.replaceChildren(...medios.map(crearTarjeta));
+        if (medios.length === 0) {
+          const vacio = document.createElement('p');
+          vacio.className = 'vacio';
+          vacio.textContent = 'No hay películas o series que coincidan con el filtro.';
+          lista.append(vacio);
+        }
+        mostrarMensaje(mensaje, `${medios.length} resultado(s)`, '');
+      } catch (error) {
+        mostrarMensaje(mensaje, error.message, 'error');
+      }
+    }
+
+    function construirCuerpo(formulario) {
+      const datos = new FormData(formulario);
+      const cuerpo = {
+        titulo: datos.get('titulo').trim(),
+        sinopsis: datos.get('sinopsis').trim(),
+        anioEstreno: Number(datos.get('anioEstreno')),
+        tipoId: Number(datos.get('tipoId')),
+        generoId: Number(datos.get('generoId')),
+        directorId: Number(datos.get('directorId')),
+        productoraId: Number(datos.get('productoraId')),
+        url: datos.get('url').trim(),
+      };
+      const portada = datos.get('imagenPortada').trim();
+      if (portada) cuerpo.imagenPortada = portada;
+      return cuerpo;
+    }
+
+    $('#formulario').addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const formulario = evento.currentTarget;
+      const mensaje = $('#mensaje-formulario');
+      const boton = $('#boton-agregar');
+
+      if (!formulario.reportValidity()) return;
+
+      boton.disabled = true;
+      mostrarMensaje(mensaje, 'Guardando...', '');
+      try {
+        const creado = await api('/medios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(construirCuerpo(formulario)),
+        });
+        formulario.reset();
+        await cargarListasDelFormulario();
+        mostrarMensaje(mensaje, `"${creado.titulo}" se agregó correctamente.`, 'exito');
+        await cargarMedios();
+      } catch (error) {
+        mostrarMensaje(mensaje, error.message, 'error');
+      } finally {
+        boton.disabled = false;
+      }
+    });
+
+    $('#filtro-tipo').addEventListener('change', cargarMedios);
+    $('#filtro-genero').addEventListener('change', cargarMedios);
+
+    async function iniciar() {
+      try {
+        await Promise.all([cargarFiltros(), cargarListasDelFormulario()]);
+        await cargarMedios();
+      } catch (error) {
+        mostrarMensaje($('#mensaje-lista'), 'No se pudo conectar con la API: ' + error.message, 'error');
+      }
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

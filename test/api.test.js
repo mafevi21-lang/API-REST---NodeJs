@@ -146,6 +146,13 @@ test('medios: solo acepta catálogos activos y respeta referencias', async () =>
   assert.equal(despues.status, 204);
 });
 
+test('la interfaz se sirve en la raíz del servidor', async () => {
+  const res = await fetch(base.replace(/\/api$/, '/'));
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /text\/html/);
+  assert.match(await res.text(), /Catálogo de películas y series/);
+});
+
 test('rutas inexistentes responden 404 en JSON', async () => {
   const res = await peticion('GET', '/no-existe');
   assert.equal(res.status, 404);

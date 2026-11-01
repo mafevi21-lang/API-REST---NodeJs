@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('node:path');
 const express = require('express');
 const { manejadorNoEncontrado, manejadorErrores } = require('./middlewares/manejadorErrores');
 const generosRutas = require('./modules/generos/generos');
@@ -11,6 +12,7 @@ const mediosRutas = require('./modules/medios/medios');
 const app = express();
 
 app.use(express.json({ limit: '100kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api', (req, res) => {
   res.json({
