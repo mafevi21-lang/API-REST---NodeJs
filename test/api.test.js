@@ -92,9 +92,9 @@ test('validaciones de entrada y recursos inexistentes', async () => {
 test('medios: solo acepta catálogos activos y respeta referencias', async () => {
   const director = await peticion('POST', '/directores', { nombres: 'Christopher Nolan' });
   const productora = await peticion('POST', '/productoras', {
-    nombre: 'Warner Bros.',
+    nombre: 'Productora de prueba',
     slogan: 'Del mismo modo',
-    descripcion: 'Estudio de cine',
+    descripcion: 'Productora usada solo en las pruebas',
   });
   const generoInactivo = await peticion('POST', '/generos', { nombre: 'Western', estado: 'inactivo' });
   assert.equal(generoInactivo.status, 201);

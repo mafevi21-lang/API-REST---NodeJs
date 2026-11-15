@@ -86,6 +86,15 @@ const TIPOS_INICIALES = [
   ['Serie', 'Producción audiovisual dividida en temporadas y episodios.'],
 ];
 
+const DIRECTORES_INICIALES = ['Christopher Nolan', 'Steven Spielberg', 'Greta Gerwig'];
+
+const PRODUCTORAS_INICIALES = [
+  ['Disney', 'Estudio de cine y entretenimiento.'],
+  ['Warner Bros.', 'Estudio de cine y entretenimiento.'],
+  ['Paramount Pictures', 'Estudio de cine y entretenimiento.'],
+  ['MGM', 'Estudio de cine y entretenimiento.'],
+];
+
 async function sembrar() {
   for (const [nombre, descripcion] of GENEROS_INICIALES) {
     await db.query(
@@ -97,6 +106,20 @@ async function sembrar() {
     await db.query(
       `INSERT INTO ${tablaSql('tipos')} (nombre, descripcion) VALUES ($1, $2) ON CONFLICT (nombre) DO NOTHING`,
       [nombre, descripcion],
+    );
+  }
+  for (const [nombre, descripcion] of PRODUCTORAS_INICIALES) {
+    await db.query(
+      `INSERT INTO ${tablaSql('productoras')} (nombre, descripcion) VALUES ($1, $2) ON CONFLICT (nombre) DO NOTHING`,
+      [nombre, descripcion],
+    );
+  }
+  // Los directores no tienen nombre único, así que se revisa que no exista antes de insertarlos
+  for (const nombres of DIRECTORES_INICIALES) {
+    await db.query(
+      `INSERT INTO ${tablaSql('directores')} (nombres)
+       SELECT $1 WHERE NOT EXISTS (SELECT 1 FROM ${tablaSql('directores')} WHERE nombres = $1)`,
+      [nombres],
     );
   }
 }

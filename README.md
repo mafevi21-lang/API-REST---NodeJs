@@ -39,6 +39,25 @@ npm test           # pruebas automatizadas (usan un esquema temporal que se borr
 
 > **Nota:** `npm start` también crea las tablas si no existen, así que `db:init` solo es necesario para prepararla antes.
 
+## Interfaz en React
+
+Las pantallas están en la carpeta `frontend/` y usan React con Vite. Se comunican con la API mediante un proxy: las peticiones a `/api` se reenvían a `http://localhost:3000`.
+
+Para ejecutarlas, deja la API corriendo con `npm start` y, en otra terminal, ejecuta:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abre http://localhost:5173. Pantallas disponibles:
+
+- **Películas y series:** consulta con filtros por tipo y género, alta, edición y borrado.
+- **Géneros, Directores, Productoras y Tipos:** consulta, alta, edición y borrado. Géneros, directores y productoras tienen filtro por estado.
+
+Además, la API sirve una interfaz sencilla en http://localhost:3000, anterior a la de React.
+
 ## Modelo de datos
 
 ```
