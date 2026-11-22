@@ -150,7 +150,13 @@ test('la interfaz se sirve en la raíz del servidor', async () => {
   const res = await fetch(base.replace(/\/api$/, '/'));
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type'), /text\/html/);
-  assert.match(await res.text(), /Catálogo de películas y series/);
+  assert.match(await res.text(), /Administración de películas y series|Catálogo de películas y series/);
+});
+
+test('las rutas de la aplicación en el navegador devuelven la página principal', async () => {
+  const res = await fetch(base.replace(/\/api$/, '/medios'));
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /text\/html/);
 });
 
 test('rutas inexistentes responden 404 en JSON', async () => {

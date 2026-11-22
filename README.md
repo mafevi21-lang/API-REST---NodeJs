@@ -58,6 +58,22 @@ Abre http://localhost:5173. Pantallas disponibles:
 
 Además, la API sirve una interfaz sencilla en http://localhost:3000, anterior a la de React.
 
+## Despliegue en la nube (Render)
+
+La aplicación se despliega como un solo servicio: Express atiende la API en `/api` y sirve el build de React en la raíz. El archivo `render.yaml` describe el servicio.
+
+Pasos:
+
+1. Crea una cuenta en https://render.com e inicia sesión con GitHub.
+2. Elige **New > Blueprint** y selecciona el repositorio `mafevi21-lang/API-REST---NodeJs`. Render leerá `render.yaml`.
+3. Render pedirá el valor de `DATABASE_URL`. Pega ahí la cadena de conexión de Neon, con la clave vigente. No la subas al repositorio.
+4. Confirma con **Apply**. Render instala las dependencias, compila el frontend (`npm run build`) y arranca el servicio (`npm start`).
+5. Al terminar, abre la URL que te asigne Render. La API responde en `<URL>/api`.
+
+Notas del plan gratuito:
+- El servicio se duerme tras un tiempo sin uso. La primera carga después de dormir puede tardar unos segundos.
+- Las tablas y los datos iniciales se crean al arrancar, así que no hace falta ejecutar `db:init` en la nube.
+
 ## Modelo de datos
 
 ```

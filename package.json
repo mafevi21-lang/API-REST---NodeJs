@@ -1,13 +1,14 @@
 {
   "name": "proyecto_integrado_ii",
   "version": "1.0.0",
-  "description": "API REST para la gestión de películas y series (evidencia API REST - Node.js)",
+  "description": "API REST y pantallas React para la gestión de películas y series",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test test/api.test.js",
-    "db:init": "node src/db/inicializar.js"
+    "db:init": "node src/db/inicializar.js",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build"
   },
   "keywords": [],
   "author": "",
